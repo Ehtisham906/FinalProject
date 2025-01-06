@@ -43,6 +43,37 @@ const loginUser = async (req, res) => {
     }
 };
 
+const updateUserProfile = async (req, res) => {
+    const { username, email, password } = req.body; // Get the fields to update
+    const userId = req.user.id; // Assume the user ID is extracted from a verified token
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update fields if provided
+        if (username) user.username = username;
+        if (email) user.email = email;
+        if (password) {
+            user.password = await bcrypt.hash(password, 10);
+        }
+
+        const updatedUser = await user.save();
+        res.json({
+            message: 'Profile updated successfully',
+            user: {
+                id: updatedUser._id,
+                username: updatedUser.username,
+                email: updatedUser.email,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 // Add more user-related functions (e.g., get user, update user, etc.)
 
-module.exports = { registerUser, loginUser };
+module.exports = { registerUser, loginUser, updateUserProfile };

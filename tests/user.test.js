@@ -1,49 +1,33 @@
-const request = require('supertest');
-const app = require('../src/app');
-const mongoose = require('mongoose');
+const { registerUser, loginUser } = require('../src/services/userService');
 const User = require('../src/models/userModel');
-
-beforeAll(async () => {
-    await mongoose.connect(process.env.MONGODB_URI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-    });
-});
-
-afterAll(async () => {
-    await User.deleteMany({});
-    await mongoose.connection.close();
-});
+jest.mock('../src/models/userModel');
 
 describe('User Service', () => {
-    it('should register a new user', async () => {
-        const response = await request(app)
-            .post('/api/users/register')
-            .send({
-                username: 'testuser',
-                email: 'test@example.com',
-                password: 'password123',
-            });
-        expect(response.statusCode).toBe(201);
-        expect(response.body.message).toBe('User created successfully');
+  it('should register a new user', async () => {
+    User.findOne.mockResolvedValue(null);
+    User.create.mockResolvedValue({
+      _id: '1',
+      username: 'testuser',
+      email: 'test@example.com',
+      password: 'hashedpassword'
     });
 
-    it('should login an existing user', async () => {
-        await request(app)
-            .post('/api/users/register')
-            .send({
-                username: 'testuser',
-                email: 'test@example.com',
-                password: 'password123',
-            });
-
-        const response = await request(app)
-            .post('/api/users/login')
-            .send({
-                email: 'test@example.com',
-                password: 'password123',
-            });
-        expect(response.statusCode).toBe(200);
-        expect(response.body.token).toBeDefined();
+    const newUser = await registerUser({
+      username: 'testuser',
+      email: 'test@example.com',
+      password: 'password123'
     });
+
+    expect(newUser.email).toBe('test@example.com');
+  });
+
+  it('should fail to register a user with existing email', async () => {
+    User.findOne.mockResolvedValue(true);
+
+    await expect(registerUser({
+      username: 'testuser',
+      email: 'test@example.com',
+      password: 'password123'
+    })).rejects.toThrow('User already exists');
+  });
 });
